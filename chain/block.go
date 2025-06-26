@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -41,17 +42,52 @@ func NewBlock(parentBlock Block, data string) *Block {
 
 // Blockchain is a database that keeps all its blocks
 type Blockchain struct {
-	blocks []*Block
+	Blocks []*Block
 }
 
 // Save provided data as a block in the blockchain
 func (bc *Blockchain) AddBlock(data string) {
-	lastBlock := bc.blocks[len(bc.blocks)-1]
+	lastBlock := bc.Blocks[len(bc.Blocks)-1]
 	newBlock := NewBlock(*lastBlock, data)
-	bc.blocks = append(bc.blocks, newBlock)
+
+	if !VerifyBlock(newBlock, lastBlock) {
+		panic(fmt.Sprintf("Failed attempt to AddBlock. "+
+			"Block under the number %d is not valid.", newBlock.Number))
+	}
+
+	bc.Blocks = append(bc.Blocks, newBlock)
 }
 
 // Create a new blockchain, starting with genesis block
 func NewBlockchain() *Blockchain {
 	return &Blockchain{[]*Block{GenesisBlock()}}
+}
+
+// Confirm whether a block is authentic
+func VerifyBlock(newBlock, parentBlock *Block) bool {
+	if newBlock.Number != parentBlock.Number+1 {
+		return false
+	}
+	if newBlock.ParentHash != parentBlock.Hash {
+		return false
+	}
+
+	expectedHash := NewHash(struct {
+		Number     uint64
+		Time       time.Time
+		Hash       Hash
+		ParentHash Hash
+		Data       string
+	}{
+		Number:     newBlock.Number,
+		Time:       newBlock.Time,
+		Hash:       Hash{},
+		ParentHash: newBlock.ParentHash,
+		Data:       newBlock.Data,
+	})
+	if newBlock.Hash != expectedHash {
+		return false
+	}
+
+	return true
 }
